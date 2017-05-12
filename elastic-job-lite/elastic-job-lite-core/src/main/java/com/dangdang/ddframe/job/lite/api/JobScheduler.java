@@ -85,14 +85,6 @@ public class JobScheduler {
     }
 
     private JobScheduler(final CoordinatorRegistryCenter regCenter, final LiteJobConfiguration liteJobConfig, final JobEventBus jobEventBus, final ElasticJobListener... elasticJobListeners) {
-
-        boolean isAllDisabled = true;
-        JobNodePath jobNodePath = new JobNodePath(liteJobConfig.getJobName());
-        for (String each : regCenter.getChildrenKeys(jobNodePath.getServerNodePath())) {
-            if(!StringUtils.equalsIgnoreCase(regCenter.get(jobNodePath.getServerNodePath(each)), "DISABLED")){
-                isAllDisabled = false;
-            }
-        }
         JobInstance jobInstance = new JobInstance();
         JobRegistry.getInstance().addJobInstance(liteJobConfig.getJobName(), jobInstance);
         this.liteJobConfig = liteJobConfig;
@@ -101,13 +93,6 @@ public class JobScheduler {
         setGuaranteeServiceForElasticJobListeners(regCenter, elasticJobListenerList);
         schedulerFacade = new SchedulerFacade(regCenter, liteJobConfig.getJobName(), elasticJobListenerList);
         jobFacade = new LiteJobFacade(regCenter, liteJobConfig.getJobName(), Arrays.asList(elasticJobListeners), jobEventBus);
-        jobFacade.getShardingContexts();
-        if(isAllDisabled && !liteJobConfig.isDisabled()){
-            for (String each : regCenter.getChildrenKeys(jobNodePath.getServerNodePath())) {
-                regCenter.persist(jobNodePath.getServerNodePath(each), "DISABLED");
-            }
-        }
-
     }
 
     private void setGuaranteeServiceForElasticJobListeners(final CoordinatorRegistryCenter regCenter, final List<ElasticJobListener> elasticJobListeners) {
@@ -129,6 +114,10 @@ public class JobScheduler {
         JobRegistry.getInstance().registerJob(liteJobConfigFromRegCenter.getJobName(), jobScheduleController, regCenter);
         schedulerFacade.registerStartUpInfo(!liteJobConfigFromRegCenter.isDisabled());
         jobScheduleController.scheduleJob(liteJobConfigFromRegCenter.getTypeConfig().getCoreConfig().getCron());
+        jobFacade.getShardingContexts();
+        if(StringUtils.equalsIgnoreCase(liteJobConfigFromRegCenter.getStatus(), "DISABLED")){
+            //如果是
+        }
     }
 
     private JobDetail createJobDetail(final String jobClass) {
